@@ -57,12 +57,15 @@ for (const c of d.cats) {
 }
 fs.writeFileSync(path.join(dir, 'wiki.md'), out);
 
-// One short file per article, with links rewritten to the other article files
-const toFiles = s => s.replace(/\]\(#([a-z0-9-]+)\)/g, (_, id) => `](${BASE}pages/${id}.md)`);
-let idx = `# Twelve Harvests Wiki — page index\n\nOne Markdown file per article. Full text in one file: ${BASE}wiki.md\n`;
+// Per-article files. The "index" article is the wiki's own page list; pages/index.* replaces it.
+const perPage = d.arts.filter(a => a.i !== 'index');
+
+// Markdown: one short file per article, links rewritten to the other article files
+const toFiles = s => s.replace(/\]\(#([a-z0-9-]+)\)/g, (_, id) => `](${BASE}pages/${id === 'index' ? 'index' : id}.md)`);
+let idx = `# Twelve Harvests Wiki — page index\n\nOne Markdown file per article. HTML versions: ${BASE}pages/index.html · Full text in one file: ${BASE}wiki.md (Markdown) or ${BASE}wiki.html (HTML)\n`;
 for (const c of d.cats) {
   idx += `\n## ${c}\n\n`;
-  for (const a of d.arts.filter(a => a.c === c)) {
+  for (const a of perPage.filter(a => a.c === c)) {
     idx += `- [${a.t}](${BASE}pages/${a.i}.md) — ${ent(a.l)}\n`;
     fs.writeFileSync(path.join(dir, 'pages', a.i + '.md'),
       `# ${a.t}\n\n*${c}${a.x ? ' · colour ' + a.x : ''} · part of the Twelve Harvests Wiki — index: ${BASE}pages/index.md*\n\n> ${ent(a.l)}\n\n${toFiles(md(a.h))}\n`);
@@ -70,16 +73,19 @@ for (const c of d.cats) {
 }
 fs.writeFileSync(path.join(dir, 'pages', 'index.md'), idx);
 
-// Static, no-JavaScript page with every article rendered in place
-const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-let html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Twelve Harvests Wiki — all pages</title>
-<meta name="description" content="Full text of every Twelve Harvests Wiki article on one page, readable without JavaScript.">
-<style>:root{color-scheme:dark}body{background:#0B0B0D;color:#E9E7E2;font:16px/1.65 system-ui,sans-serif;max-width:46rem;margin:0 auto;padding:2rem 16px 5rem}
-a{color:#E9E7E2}h1,h2,h3,h4{font-family:Georgia,serif}h2{margin-top:3rem;border-top:1px solid #26262A;padding-top:2rem}
-.lead{color:#9A968E;font-style:italic}table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}th,td{text-align:left;padding:.4rem .8rem .4rem 0;border-bottom:1px solid #1C1C20;vertical-align:top}
-.sw{display:inline-block;width:.9rem;height:.9rem;border-radius:50%;vertical-align:middle}.xp{margin-top:1.2rem}.xp-h{display:block;font-weight:600}.xp-m{display:block;font-size:.75rem;text-transform:uppercase;letter-spacing:.1em;color:#6A6762}code{color:#9A968E}</style></head><body>
-<h1>Twelve Harvests Wiki — all pages</h1><p>Every article on one page. The interactive wiki is at <a href="./">the main site</a>; plain-text version: <a href="wiki.md">wiki.md</a>.</p><nav>`;
+// HTML: plain, no-JavaScript pages
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+const CSS = `<style>:root{color-scheme:dark}body{background:#0B0B0D;color:#E9E7E2;font:16px/1.65 system-ui,"Noto Sans Thai",sans-serif;max-width:46rem;margin:0 auto;padding:2rem 16px 5rem}
+a{color:#E9E7E2}h1,h2,h3,h4{font-family:Georgia,serif}article>h2{margin-top:3rem;border-top:1px solid #26262A;padding-top:2rem}
+.lead{color:#9A968E;font-style:italic}.meta{font-size:.8rem;color:#6A6762}nav.top{font-size:.85rem;color:#6A6762}
+table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}th,td{text-align:left;padding:.4rem .8rem .4rem 0;border-bottom:1px solid #1C1C20;vertical-align:top}
+.sw{display:inline-block;width:.9rem;height:.9rem;border-radius:50%;vertical-align:middle}.xp{margin-top:1.2rem}.xp-h{display:block;font-weight:600}.xp-m{display:block;font-size:.75rem;text-transform:uppercase;letter-spacing:.1em;color:#6A6762}.tiny{color:#6A6762;font-size:.85rem}code{color:#9A968E}</style>`;
+const head = (title, desc, canon) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)}</title><meta name="description" content="${esc(desc)}"><link rel="canonical" href="${canon}">${CSS}</head><body>`;
+
+// wiki.html (and all.html, kept for the earlier link): every article on one page
+let html = head('Twelve Harvests Wiki — full text', 'Full text of every Twelve Harvests Wiki article on one page, readable without JavaScript.', BASE + 'wiki.html') +
+  `<h1>Twelve Harvests Wiki — full text</h1><p>Every article on one page. Interactive wiki: <a href="${BASE}">${BASE}</a> · One page per article: <a href="${BASE}pages/index.html">pages/index.html</a> · Markdown: <a href="${BASE}wiki.md">wiki.md</a></p><nav>`;
 for (const c of d.cats) html += `<p><strong>${c}:</strong> ` + d.arts.filter(a => a.c === c).map(a => `<a href="#${a.i}">${esc(a.t)}</a>`).join(' · ') + '</p>';
 html += '</nav>';
 for (const c of d.cats) {
@@ -87,5 +93,61 @@ for (const c of d.cats) {
   for (const a of d.arts.filter(a => a.c === c)) html += `<article><h2 id="${a.i}">${esc(a.t)}</h2><p class="lead">${a.l}</p>${a.h}</article>`;
 }
 html += '</body></html>';
+fs.writeFileSync(path.join(dir, 'wiki.html'), html);
 fs.writeFileSync(path.join(dir, 'all.html'), html);
-console.log('articles:', d.arts.length, 'md bytes:', out.length, 'html bytes:', html.length);
+
+// pages/<id>.html: one article each, links rewritten to the other article pages
+const toHtml = s => s.replace(/href="#([a-z0-9-]+)"/g, (_, id) => `href="${BASE}pages/${id}.html"`);
+let hidx = head('Twelve Harvests Wiki — page index', 'Every Twelve Harvests Wiki article, one page each, readable without JavaScript.', BASE + 'pages/index.html') +
+  `<h1>Twelve Harvests Wiki — page index</h1><p>Every article, one page each. Full text on one page: <a href="${BASE}wiki.html">wiki.html</a> · Markdown: <a href="${BASE}wiki.md">wiki.md</a> · Interactive wiki: <a href="${BASE}">${BASE}</a></p>`;
+for (const c of d.cats) {
+  hidx += `<h2>${c}</h2><ul>`;
+  for (const a of perPage.filter(a => a.c === c)) {
+    hidx += `<li><a href="${BASE}pages/${a.i}.html">${esc(a.t)}</a> — ${a.l}</li>`;
+    fs.writeFileSync(path.join(dir, 'pages', a.i + '.html'),
+      head(`${a.t} — Twelve Harvests Wiki`, ent(a.l), `${BASE}pages/${a.i}.html`) +
+      `<nav class="top"><a href="${BASE}pages/index.html">All pages</a> · ${c} · <a href="${BASE}pages/${a.i}.md">Markdown</a> · <a href="${BASE}#${a.i}">Interactive</a></nav>` +
+      `<h1>${esc(a.t)}</h1><p class="lead">${a.l}</p>${a.x ? `<p class="meta">Colour ${a.x}</p>` : ''}${toHtml(a.h)}</body></html>`);
+  }
+  hidx += '</ul>';
+}
+fs.writeFileSync(path.join(dir, 'pages', 'index.html'), hidx + '</body></html>');
+
+// llms.txt: entry point for AI assistants. Descriptions are the wiki's own article summaries, verbatim.
+const art = id => d.arts.find(a => a.i === id);
+const line = id => { const a = art(id); return a ? `- [${a.t}](${BASE}pages/${a.i}.html): ${ent(a.l)} (Markdown: ${BASE}pages/${a.i}.md)` : null; };
+const pick = ids => ids.map(line).filter(Boolean).join('\n');
+const llms = `# Twelve Harvests Wiki
+
+> ${ent(art('home').l)}
+
+Two separate worlds share the same twelve stones: the real tournament (Thailand, real venues, real seasons; the sport is pickleball) and an invented country in which the sport is called Spectra. See "The world" below.
+
+## Complete wiki
+
+- [Full text, HTML](${BASE}wiki.html): every article on one page
+- [Full text, Markdown](${BASE}wiki.md): every article in one file
+- [Page index, HTML](${BASE}pages/index.html): one page per article
+- [Page index, Markdown](${BASE}pages/index.md)
+
+## The tournament (real world)
+
+${pick(['home', 'seasons', 'schedule', 'editions-index', 'experiences', 'formats-index', 'titles', 'earned-access'])}
+
+## The world (fiction: the sport is Spectra)
+
+${pick(d.arts.filter(a => a.c === 'World').map(a => a.i).concat(['nations-index']))}
+
+## Optional
+
+${pick(d.arts.filter(a => !['World', 'Overview'].includes(a.c) && !['formats-index', 'titles', 'earned-access', 'nations-index'].includes(a.i)).map(a => a.i))}
+`;
+fs.writeFileSync(path.join(dir, 'llms.txt'), llms);
+
+// sitemap.xml
+const urls = ['', 'wiki.html', 'wiki.md', 'llms.txt', 'pages/index.html', 'pages/index.md']
+  .concat(perPage.flatMap(a => [`pages/${a.i}.html`, `pages/${a.i}.md`]));
+fs.writeFileSync(path.join(dir, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+  urls.map(u => `  <url><loc>${BASE}${u}</loc></url>`).join('\n') + '\n</urlset>\n');
+
+console.log('articles:', d.arts.length, 'per-page:', perPage.length, 'md bytes:', out.length, 'html bytes:', html.length);
