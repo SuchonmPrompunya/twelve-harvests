@@ -31,7 +31,8 @@ function table(t) {
 
 function md(h) {
   return ent(h
-    .replace(/<div class="table-wrap">|<\/div>(?=\s*<)/g, m => m) // keep
+    .replace(/<figure[^>]*>\s*<img[^>]*src="([^"]+)"[^>]*alt="([^"]*)"[^>]*>\s*<figcaption>([\s\S]*?)<\/figcaption>\s*<\/figure>/g,
+      (_, src, alt, cap) => `\n\n![${alt}](${src.startsWith('http') ? src : BASE + src})\n\n*${inline(cap)}*\n\n`)
     .replace(/<table[\s\S]*?<\/table>/g, t => '\n\n' + table(t) + '\n\n')
     .replace(/<div class="xp">\s*<span class="xp-h">([\s\S]*?)<\/span>\s*<span class="xp-m">([\s\S]*?)<\/span>\s*<p[^>]*>([\s\S]*?)<\/p>\s*<\/div>/g,
       (_, a, b, c) => `\n\n#### ${inline(a)}\n*${inline(b)}*\n\n${inline(c)}\n\n`)
@@ -75,7 +76,9 @@ fs.writeFileSync(path.join(dir, 'pages', 'index.md'), idx);
 
 // HTML: plain, no-JavaScript pages
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-const CSS = `<style>:root{color-scheme:dark}body{background:#0B0B0D;color:#E9E7E2;font:16px/1.65 system-ui,"Noto Sans Thai",sans-serif;max-width:46rem;margin:0 auto;padding:2rem 16px 5rem}
+const absImg = s => s.replace(/src="stones\//g, 'src="' + BASE + 'stones/');
+const CSS = `<style>figure.stone{margin:1.5rem 0 0;max-width:26rem}figure.stone img{max-width:100%;max-height:22rem;width:auto;height:auto;border-radius:4px}figure.stone figcaption{font-size:.75rem;color:#6A6762}figure.stone figcaption a{color:#6A6762}
+:root{color-scheme:dark}body{background:#0B0B0D;color:#E9E7E2;font:16px/1.65 system-ui,"Noto Sans Thai",sans-serif;max-width:46rem;margin:0 auto;padding:2rem 16px 5rem}
 a{color:#E9E7E2}h1,h2,h3,h4{font-family:Georgia,serif}article>h2{margin-top:3rem;border-top:1px solid #26262A;padding-top:2rem}
 .lead{color:#9A968E;font-style:italic}.meta{font-size:.8rem;color:#6A6762}nav.top{font-size:.85rem;color:#6A6762}
 table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}th,td{text-align:left;padding:.4rem .8rem .4rem 0;border-bottom:1px solid #1C1C20;vertical-align:top}
@@ -90,7 +93,7 @@ for (const c of d.cats) html += `<p><strong>${c}:</strong> ` + d.arts.filter(a =
 html += '</nav>';
 for (const c of d.cats) {
   html += `<h1 id="cat-${c.toLowerCase()}" style="margin-top:4rem">${c}</h1>`;
-  for (const a of d.arts.filter(a => a.c === c)) html += `<article><h2 id="${a.i}">${esc(a.t)}</h2><p class="lead">${a.l}</p>${a.h}</article>`;
+  for (const a of d.arts.filter(a => a.c === c)) html += `<article><h2 id="${a.i}">${esc(a.t)}</h2><p class="lead">${a.l}</p>${absImg(a.h)}</article>`;
 }
 html += '</body></html>';
 fs.writeFileSync(path.join(dir, 'wiki.html'), html);
@@ -107,7 +110,7 @@ for (const c of d.cats) {
     fs.writeFileSync(path.join(dir, 'pages', a.i + '.html'),
       head(`${a.t} — Twelve Harvests Wiki`, ent(a.l), `${BASE}pages/${a.i}.html`) +
       `<nav class="top"><a href="${BASE}pages/index.html">All pages</a> · ${c} · <a href="${BASE}pages/${a.i}.md">Markdown</a> · <a href="${BASE}#${a.i}">Interactive</a></nav>` +
-      `<h1>${esc(a.t)}</h1><p class="lead">${a.l}</p>${a.x ? `<p class="meta">Colour ${a.x}</p>` : ''}${toHtml(a.h)}</body></html>`);
+      `<h1>${esc(a.t)}</h1><p class="lead">${a.l}</p>${a.x ? `<p class="meta">Colour ${a.x}</p>` : ''}${absImg(toHtml(a.h))}</body></html>`);
   }
   hidx += '</ul>';
 }
